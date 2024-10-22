@@ -6,8 +6,8 @@ import firebaseConfig from '../config/firebaseConfig'
 const db = getFirestore(firebaseConfig)
 const storage = getStorage(firebaseConfig)
 
-function Form() {
-    const person = {
+function Form({ onAddClient }) {
+    const initialClientState = {
         name: '',
         address: '',
         phone: '',
@@ -15,7 +15,7 @@ function Form() {
         email: ''
     }
 
-    const [client, setClient] = useState(person)
+    const [client, setClient] = useState(initialClientState)
     const [urlImg, setUrlImg] = useState("")
     const [available, setAvailable] = useState(false)
 
@@ -26,18 +26,16 @@ function Form() {
 
     const fileHandler = async (e) => {
         try {
-            //Seleccionar el archivo
             const fileImg = e.target.files[0]
-            //Cargar imagen al storage
+            if (!fileImg) return
             const refFile = ref(storage, `clientes/${fileImg.name}`)
             await uploadBytes(refFile, fileImg)
-            //Obtener la url de la imagen en firebase
             const urlImg = await getDownloadURL(refFile)
             setUrlImg(urlImg)
-            alert('Imagen guardad con éxito')
+            alert('Imagen guardada con éxito')
             setAvailable(true)
         } catch (error) {
-            alert(error)
+            alert('Error al subir la imagen: ' + error)
         }
     }
 
@@ -52,29 +50,36 @@ function Form() {
                 phone: client.phone,
                 picture: urlImg
             }
-            await addDoc(collection(db, "clientes"), newClient)
+
+            // Agregar el nuevo cliente a Firebase
+            const docRef = await addDoc(collection(db, "clientes"), newClient)
             alert('Cliente guardado con éxito')
-            setClient(person)
-            e.target.picture.value = ""
+
+            // Enviar cliente al padre
+            if (onAddClient) {
+                onAddClient({ ...newClient, id: docRef.id })  // Pasamos el cliente con su ID
+            }
+
+            // Resetear el formulario
+            setClient(initialClientState)
+            e.target.reset()
             setAvailable(false)
         } catch (error) {
-            alert(error)
-            
+            alert('Error al guardar el cliente: ' + error)
         }
-        console.log(client)
     }
 
     return (
         <div>
             <div className="shadow-sm rounded-sm mt-5">
                 <h4 className="text-center">Registro de clientes</h4>
-                <form action="" className="p-4" onSubmit={saveClient}>
+                <form className="p-4" onSubmit={saveClient}>
                     <div className="flex flex-col">
-                        <label htmlFor="floatingInput">Ingresar Nombre</label>
+                        <label htmlFor="name">Ingresar Nombre</label>
                         <input
                             type="text"
-                            className="border border-blue-500 mt2 mb-2"
-                            id="floatingInput"
+                            className="border border-blue-500 mt-2 mb-2"
+                            id="name"
                             placeholder="Ingresar Nombre"
                             name="name"  
                             onChange={handleChange}
@@ -82,48 +87,52 @@ function Form() {
                             required
                         />
                     </div>
+
                     <div className="flex flex-col">
-                        <label htmlFor="floatingInput">Ingresar Dirección</label>
+                        <label htmlFor="address">Ingresar Dirección</label>
                         <input
                             type="text"
-                            className="border border-blue-500 mt2 mb-2"
-                            id="floatingInput"
+                            className="border border-blue-500 mt-2 mb-2"
+                            id="address"
                             placeholder="Ingresar Dirección"
-                            name="address" 
+                            name="address"
                             onChange={handleChange}
                             value={client.address}
                             required
                         />
                     </div>
+
                     <div className="flex flex-col">
-                        <label htmlFor="floatingInput">Ingresar teléfono</label>
+                        <label htmlFor="phone">Ingresar teléfono</label>
                         <input
                             type="text"
-                            className="border border-blue-500 mt2 mb-2"
-                            id="floatingInput"
+                            className="border border-blue-500 mt-2 mb-2"
+                            id="phone"
                             placeholder="Ingresar teléfono"
-                            name="phone" 
+                            name="phone"
                             onChange={handleChange}
                             value={client.phone}
                             required
                         />
                     </div>
+
                     <div>
-                        <label>Elegir Foto de perfil</label>
+                        <label htmlFor="picture">Elegir Foto de perfil</label>
                         <input
                             type="file"
-                            id="foto"
-                            className="border border-blue-500"
+                            id="picture"
+                            className="border border-blue-500 mt-2 mb-2"
                             onChange={fileHandler}
                             required
                         />
                     </div>
+
                     <div className="flex flex-col">
-                        <label htmlFor="floatingInput">Ingresar web</label>
+                        <label htmlFor="web">Ingresar web</label>
                         <input
                             type="text"
-                            className="border border-blue-500 mt2 mb-2"
-                            id="floatingInput"
+                            className="border border-blue-500 mt-2 mb-2"
+                            id="web"
                             placeholder="Ingresar web"
                             name="web"
                             onChange={handleChange}
@@ -131,12 +140,13 @@ function Form() {
                             required
                         />
                     </div>
-                    <div className="flex flex-col border">
-                        <label htmlFor="floatingInput">Ingresar email</label>
+
+                    <div className="flex flex-col">
+                        <label htmlFor="email">Ingresar email</label>
                         <input
                             type="email"
-                            className="border border-blue-500 mt2 mb-2"
-                            id="floatingInput"
+                            className="border border-blue-500 mt-2 mb-2"
+                            id="email"
                             placeholder="Ingresar email"
                             name="email"
                             onChange={handleChange}
@@ -144,18 +154,19 @@ function Form() {
                             required
                         />
                     </div>
+
                     <button
                         className={`${
                             available ? "bg-blue-400" : "bg-gray-400 cursor-not-allowed"
                         } text-white font-bold py-2 px-4 rounded`}
                         disabled={!available}
-                        >
-                        {available ? "Guardar producto" : "Llenar formulario"}
+                    >
+                        {available ? "Guardar cliente" : "Llenar formulario"}
                     </button>
-
                 </form>
             </div>
         </div>
     )
 }
+
 export { Form }
