@@ -1,8 +1,13 @@
-import firebaseConfig from '../config/firebaseConfig'
 import { useState } from 'react'
+import { getFirestore, collection, addDoc } from 'firebase/firestore'
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import firebaseConfig from '../config/firebaseConfig'
+
+const db = getFirestore(firebaseConfig)
+const storage = getStorage(firebaseConfig)
 
 function Form() {
-    const cliente = {
+    const person = {
         name: '',
         address: '',
         phone: '',
@@ -10,15 +15,52 @@ function Form() {
         email: ''
     }
 
-    const [client, setClient] = useState(cliente)
+    const [client, setClient] = useState(person)
+    const [urlImg, setUrlImg] = useState("")
+    const [available, setAvailable] = useState(false)
 
     const handleChange = (e) => {
         const { name, value } = e.target
         setClient({ ...client, [name]: value })
     }
 
-    const saveClient = (e) => {
+    const fileHandler = async (e) => {
+        try {
+            //Seleccionar el archivo
+            const fileImg = e.target.files[0]
+            //Cargar imagen al storage
+            const refFile = ref(storage, `clientes/${fileImg.name}`)
+            await uploadBytes(refFile, fileImg)
+            //Obtener la url de la imagen en firebase
+            const urlImg = await getDownloadURL(refFile)
+            setUrlImg(urlImg)
+            alert('Imagen guardad con éxito')
+            setAvailable(true)
+        } catch (error) {
+            alert(error)
+        }
+    }
+
+    const saveClient = async (e) => {
         e.preventDefault()
+        try {
+            const newClient = {
+                name: client.name,
+                address: client.address,
+                web: client.web,
+                email: client.email,
+                phone: client.phone,
+                picture: urlImg
+            }
+            await addDoc(collection(db, "clientes"), newClient)
+            alert('Cliente guardado con éxito')
+            setClient(person)
+            e.target.picture.value = ""
+            setAvailable(false)
+        } catch (error) {
+            alert(error)
+            
+        }
         console.log(client)
     }
 
@@ -72,7 +114,8 @@ function Form() {
                             type="file"
                             id="foto"
                             className="border border-blue-500"
-                            // required
+                            onChange={fileHandler}
+                            required
                         />
                     </div>
                     <div className="flex flex-col">
@@ -101,7 +144,15 @@ function Form() {
                             required
                         />
                     </div>
-                    <button className="bg-blue-400 rounded-lg w-28 h-10">Enviar</button>
+                    <button
+                        className={`${
+                            available ? "bg-blue-400" : "bg-gray-400 cursor-not-allowed"
+                        } text-white font-bold py-2 px-4 rounded`}
+                        disabled={!available}
+                        >
+                        {available ? "Guardar producto" : "Llenar formulario"}
+                    </button>
+
                 </form>
             </div>
         </div>
